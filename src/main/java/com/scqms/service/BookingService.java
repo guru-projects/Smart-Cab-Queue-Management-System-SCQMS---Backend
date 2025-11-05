@@ -31,7 +31,7 @@ public class BookingService {
         List<Booking> queued = bookingRepository.findByStatusOrderByCreatedAtAsc("QUEUED");
         if (queued.isEmpty()) return null;
 
-        Cab cab = cabRepository.findFirstByStatus(Status.AVAILABLE).orElse(null);
+        Cab cab = cabRepository.findFirstByStatusIn(List.of(Status.AVAILABLE, Status.PARTIALLY_BUSY)).orElse(null);
         if (cab == null) return null;
 
         Booking toAssign = queued.get(0);
@@ -39,7 +39,15 @@ public class BookingService {
         toAssign.setStatus("ASSIGNED");
         bookingRepository.save(toAssign);
 
-        cab.setStatus(Status.BUSY);
+        long activeBookings = bookingRepository.countByCabAndStatus(cab, "ASSIGNED");
+
+        if (activeBookings < 3) {
+            cab.setStatus(Status.PARTIALLY_BUSY);
+        } else if (activeBookings == 3) {
+            cab.setStatus(Status.BUSY); // 4th passenger
+        }
+
+//        cab.setStatus(Status.BUSY);
         cab.setLastUpdated(LocalDateTime.now());
         cabRepository.save(cab);
 
@@ -57,21 +65,20 @@ public class BookingService {
     // ✅ NEW: Complete a booking and free up cab
     public Booking completeBooking(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        // Mark booking as completed
         booking.setStatus("COMPLETED");
+        bookingRepository.save(booking);
 
         Cab cab = booking.getCab();
-        if (cab != null) {
-            cab.setStatus(Status.AVAILABLE);
-            cab.setLastUpdated(LocalDateTime.now());
-            cabRepository.save(cab);
+        long activeBookings = bookingRepository.countByCabAndStatus(cab, "ASSIGNED");
 
-            // ✅ Automatically assign next queued booking
-            tryAssignNext();
-        }
+        if (activeBookings == 0) cab.setStatus(Status.AVAILABLE);
+        else if (activeBookings < 4) cab.setStatus(Status.PARTIALLY_BUSY);
 
-        return bookingRepository.save(booking);
+        cab.setLastUpdated(LocalDateTime.now());
+        cabRepository.save(cab);
+
+        return booking;
     }
 }

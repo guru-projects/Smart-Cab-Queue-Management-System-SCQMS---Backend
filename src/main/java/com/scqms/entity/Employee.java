@@ -8,15 +8,15 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Employee {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique=true)
+    @Column(unique = true)
     private String username;
 
     private String password;
 
-    // role: ADMIN / EMPLOYEE / DRIVER (drivers are stored separately but role included for flexibility)
     private String role;
 }

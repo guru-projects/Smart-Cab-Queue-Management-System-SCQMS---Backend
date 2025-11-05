@@ -1,41 +1,53 @@
 package com.scqms.service;
 
-import com.scqms.entity.Driver;
 import com.scqms.entity.Employee;
-import com.scqms.repository.DriverRepository;
 import com.scqms.repository.EmployeeRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.*;
+import com.scqms.config.JwtUtil;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
-public class AuthService implements UserDetailsService {
+public class AuthService {
 
     private final EmployeeRepository employeeRepository;
-    private final DriverRepository driverRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+    private final AuthenticationManager authenticationManager;
 
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // try employee table first (covers admin & employee)
-        Employee emp = employeeRepository.findByUsername(username).orElse(null);
-        if (emp != null) {
-            String role = emp.getRole() == null ? "EMPLOYEE" : emp.getRole();
-            return new User(emp.getUsername(), passwordEncoder.encode(emp.getPassword()),
-                    List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+    public AuthService(EmployeeRepository employeeRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtUtil jwtUtil,
+                       AuthenticationManager authenticationManager) {
+        this.employeeRepository = employeeRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+        this.authenticationManager = authenticationManager;
+    }
+
+    public String register(Employee employee) {
+        Optional<Employee> existingUser = employeeRepository.findByUsername(employee.getUsername());
+        if (existingUser.isPresent()) {
+            throw new RuntimeException("Username already exists");
         }
+        employee.setPassword(passwordEncoder.encode(employee.getPassword()));
+        employeeRepository.save(employee);
+        return "User registered successfully";
+    }
 
-        Driver d = driverRepository.findByUsername(username).orElse(null);
-        if (d != null) {
-            return new User(d.getUsername(), passwordEncoder.encode(d.getPassword()),
-                    List.of(new SimpleGrantedAuthority("ROLE_DRIVER")));
+    public String login(String username, String password) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(username, password)
+        );
+
+        if (authentication.isAuthenticated()) {
+            return jwtUtil.generateToken(username, "EMPLOYEE");
+        } else {
+            throw new RuntimeException("Invalid credentials");
         }
-
-        throw new UsernameNotFoundException("User not found: " + username);
     }
 }

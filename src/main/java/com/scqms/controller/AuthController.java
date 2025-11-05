@@ -1,50 +1,89 @@
 package com.scqms.controller;
 
-import com.scqms.config.JwtUtil;
-import com.scqms.dto.AuthRequest;
-import com.scqms.dto.AuthResponse;
 import com.scqms.entity.Employee;
-import com.scqms.repository.DriverRepository;
 import com.scqms.repository.EmployeeRepository;
-import lombok.RequiredArgsConstructor;
+import com.scqms.service.AuthService;
+import com.scqms.service.CustomUserDetailsService;
+import com.scqms.config.JwtUtil;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.*;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
-@RequestMapping("/api/auth")
-@RequiredArgsConstructor
+@RequestMapping("/auth")
+@CrossOrigin(origins = "*")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final EmployeeRepository employeeRepository;
-    private final DriverRepository driverRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
+    private final CustomUserDetailsService userDetailsService;
 
+    public AuthController(AuthenticationManager authenticationManager,
+                          JwtUtil jwtUtil,
+                          EmployeeRepository employeeRepository,
+                          PasswordEncoder passwordEncoder,
+                          AuthService authService,
+                          CustomUserDetailsService userDetailsService) {
+        this.authenticationManager = authenticationManager;
+        this.jwtUtil = jwtUtil;
+        this.employeeRepository = employeeRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.authService = authService;
+        this.userDetailsService = userDetailsService;
+    }
+
+    // ✅ Register new user
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@RequestBody Employee employee) {
+        if (employeeRepository.findByUsername(employee.getUsername()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Username already exists"));
+        }
+
+        employee.setPassword(passwordEncoder.encode(employee.getPassword()));
+        employeeRepository.save(employee);
+
+        return ResponseEntity.ok(Map.of("message", "User registered successfully"));
+    }
+
+    // ✅ Login and generate JWT
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> loginData) {
         try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+            String username = loginData.get("username");
+            String password = loginData.get("password");
+
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(username, password)
             );
-        } catch (BadCredentialsException ex) {
-            return ResponseEntity.status(401).body("Invalid credentials");
-        }
 
-        // determine role from employee or driver table
-        String role = "EMPLOYEE";
-        var empOpt = employeeRepository.findByUsername(request.getUsername());
-        if (empOpt.isPresent()) {
-            Employee e = empOpt.get();
-            role = e.getRole() == null ? "EMPLOYEE" : e.getRole();
-        } else if (driverRepository.findByUsername(request.getUsername()).isPresent()) {
-            role = "DRIVER";
-        }
+            // ✅ Load user details using the correct service
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-        String token = jwtUtil.generateToken(request.getUsername(), role);
-        return ResponseEntity.ok(new AuthResponse(token, role));
+            // ✅ Generate JWT
+            String token = jwtUtil.generateToken(userDetails);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("username", username);
+
+            return ResponseEntity.ok(response);
+
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid username or password"));
+        }
     }
 }

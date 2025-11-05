@@ -1,6 +1,6 @@
 package com.scqms.entity;
 
-import com.scqms.enums.CabStatus;
+import com.scqms.enums.Status;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,7 +19,7 @@ public class Cab {
     private String driverName;
 
     @Enumerated(EnumType.STRING)
-    private CabStatus status = CabStatus.AVAILABLE;
+    private Status status;
 
     private Double latitude;
     private Double longitude;

@@ -2,7 +2,7 @@ package com.scqms.service;
 
 import com.scqms.dto.LocationRequest;
 import com.scqms.entity.Cab;
-import com.scqms.enums.CabStatus;
+import com.scqms.enums.Status;
 import com.scqms.repository.CabRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,12 +25,12 @@ public class DriverService {
         cab.setLastUpdated(LocalDateTime.now());
 
         if (geoFenceUtil.isNearGuindy(request.getLatitude(), request.getLongitude())) {
-            cab.setStatus(CabStatus.AVAILABLE);
+            cab.setStatus(Status.AVAILABLE);
         } else if (geoFenceUtil.isNearOffice(request.getLatitude(), request.getLongitude())) {
-            cab.setStatus(CabStatus.BUSY);
+            cab.setStatus(Status.BUSY);
         } else {
             // In between: keep as BUSY if previously BUSY, else OFFLINE
-            if (cab.getStatus() == null) cab.setStatus(CabStatus.OFFLINE);
+            if (cab.getStatus() == null) cab.setStatus(Status.OFFLINE);
         }
 
         cabRepository.save(cab);

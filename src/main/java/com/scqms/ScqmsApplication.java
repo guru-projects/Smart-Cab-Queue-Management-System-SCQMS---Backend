@@ -3,7 +3,7 @@ package com.scqms;
 import com.scqms.entity.Cab;
 import com.scqms.entity.Driver;
 import com.scqms.entity.Employee;
-import com.scqms.enums.CabStatus;
+import com.scqms.enums.Status;
 import com.scqms.repository.CabRepository;
 import com.scqms.repository.DriverRepository;
 import com.scqms.repository.EmployeeRepository;
@@ -29,7 +29,7 @@ public class ScqmsApplication {
                     Cab c = new Cab();
                     c.setCabNumber("TN01AB100" + i);
                     c.setDriverName("Driver" + i);
-                    c.setStatus(CabStatus.AVAILABLE);
+                    c.setStatus(Status.AVAILABLE);
                     c.setLastUpdated(LocalDateTime.now());
                     cabRepo.save(c);
 

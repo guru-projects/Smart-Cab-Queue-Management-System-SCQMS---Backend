@@ -1,7 +1,8 @@
 package com.scqms.enums;
 
-public enum CabStatus {
+public enum Status {
     AVAILABLE,
+    PARTIALLY_BUSY,
     BUSY,
     OFFLINE
 }

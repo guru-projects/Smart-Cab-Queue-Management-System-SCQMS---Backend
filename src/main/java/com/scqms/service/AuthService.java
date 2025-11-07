@@ -30,7 +30,7 @@ public class AuthService {
     }
 
     public String register(Employee employee) {
-        Optional<Employee> existingUser = employeeRepository.findByUsername(employee.getUsername());
+        Optional<Employee> existingUser = employeeRepository.findByEmail(employee.getEmail());
         if (existingUser.isPresent()) {
             throw new RuntimeException("Username already exists");
         }

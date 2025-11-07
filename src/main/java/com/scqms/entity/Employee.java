@@ -13,10 +13,15 @@ public class Employee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String name;
+
     @Column(unique = true)
-    private String username;
+    private String email;
 
     private String password;
+    private String role = "EMPLOYEE";
 
-    private String role;
+    public void setUsername(String admin) {
+        this.name = name;
+    }
 }

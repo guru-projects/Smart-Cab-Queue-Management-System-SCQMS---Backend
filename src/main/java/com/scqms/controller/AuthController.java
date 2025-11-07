@@ -28,47 +28,48 @@ public class AuthController {
     private final DriverRepository driverRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // ✅ Register: Employee / Driver / Admin
+    // ✅ EMPLOYEE REGISTER
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Map<String, String> body) {
-        String username = body.get("username");
-        String password = passwordEncoder.encode(body.get("password"));
-        String role = body.getOrDefault("role", "EMPLOYEE").toUpperCase();
+        String name = body.get("name");
+        String email = body.get("email");
+        String password = body.get("password");
+        String confirmPassword = body.get("confirmPassword");
 
-        switch (role) {
-            case "DRIVER" -> {
-                Driver driver = new Driver();
-                driver.setUsername(username);
-                driver.setPassword(password);
-                driverRepository.save(driver);
-            }
-            case "ADMIN" -> {
-                Employee admin = new Employee();
-                admin.setUsername(username);
-                admin.setPassword(password);
-                admin.setRole("ADMIN");
-                employeeRepository.save(admin);
-            }
-            default -> {
-                Employee emp = new Employee();
-                emp.setUsername(username);
-                emp.setPassword(password);
-                emp.setRole("EMPLOYEE");
-                employeeRepository.save(emp);
-            }
-        }
+        if (email == null || password == null || confirmPassword == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Email, password, and confirmPassword are required."));
 
-        return ResponseEntity.ok(Map.of("message", "Registered successfully", "username", username, "role", role));
+        if (!password.equals(confirmPassword))
+            return ResponseEntity.badRequest().body(Map.of("error", "Passwords do not match."));
+
+        if (employeeRepository.findByEmail(email).isPresent())
+            return ResponseEntity.badRequest().body(Map.of("error", "Email already registered."));
+
+        Employee emp = new Employee();
+        emp.setName(name);
+        emp.setEmail(email);
+        emp.setPassword(passwordEncoder.encode(password));
+        emp.setRole("EMPLOYEE");
+
+        employeeRepository.save(emp);
+        return ResponseEntity.ok(Map.of("message", "Employee registered successfully!", "email", email));
     }
 
-    // ✅ Login: Works for all roles
+    // ✅ EMPLOYEE LOGIN
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
-        String username = body.get("username");
+        String email = body.get("email");
         String password = body.get("password");
 
+        if (email == null || password == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Email and password are required."));
+
+        Employee emp = employeeRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        // Authenticate using Spring Security
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(username, password)
+                new UsernamePasswordAuthenticationToken(email, password)
         );
 
         User user = (User) authentication.getPrincipal();
@@ -76,14 +77,9 @@ public class AuthController {
 
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
-        response.put("username", username);
-
-        // Determine role
-        String role = employeeRepository.findByUsername(username)
-                .map(Employee::getRole)
-                .orElse(driverRepository.findByUsername(username)
-                        .map(d -> "DRIVER").orElse("UNKNOWN"));
-        response.put("role", role);
+        response.put("email", emp.getEmail());
+        response.put("name", emp.getName());
+        response.put("role", emp.getRole());
 
         return ResponseEntity.ok(response);
     }

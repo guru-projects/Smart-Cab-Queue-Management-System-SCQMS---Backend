@@ -19,8 +19,10 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final DriverRepository driverRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        Employee emp = employeeRepository.findByEmail(usernameOrEmail).orElse(null);
+    public UserDetails loadUserByUsername(String usernameOrEmailOrMobile) throws UsernameNotFoundException {
+
+        // Try to load Employee by email
+        Employee emp = employeeRepository.findByEmail(usernameOrEmailOrMobile).orElse(null);
         if (emp != null) {
             return User.withUsername(emp.getEmail())
                     .password(emp.getPassword())
@@ -28,14 +30,15 @@ public class CustomUserDetailsService implements UserDetailsService {
                     .build();
         }
 
-        Driver driver = driverRepository.findByUsername(usernameOrEmail).orElse(null);
+        // Try to load Driver by mobile
+        Driver driver = driverRepository.findByMobile(usernameOrEmailOrMobile).orElse(null);
         if (driver != null) {
-            return User.withUsername(driver.getUsername())
+            return User.withUsername(driver.getMobile())
                     .password(driver.getPassword())
                     .roles("DRIVER")
                     .build();
         }
 
-        throw new UsernameNotFoundException("User not found with email/username: " + usernameOrEmail);
+        throw new UsernameNotFoundException("User not found with email or mobile: " + usernameOrEmailOrMobile);
     }
 }

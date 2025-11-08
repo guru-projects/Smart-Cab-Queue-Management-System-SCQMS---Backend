@@ -34,9 +34,10 @@ public class ScqmsApplication {
                     cabRepo.save(c);
 
                     Driver d = new Driver();
-                    d.setUsername("driver" + i);
-                    // password should be encoded; for seeding we'll set plaintext and AuthService encodes when creating
+                    d.setName("Ravi");
+                    d.setMobile("9876543210");
                     d.setPassword("driverpass" + i);
+                    d.setRole("DRIVER");
                     d.setCab(c);
                     driverRepo.save(d);
                 }

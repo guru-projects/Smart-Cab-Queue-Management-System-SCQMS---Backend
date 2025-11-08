@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/driver")
 @RequiredArgsConstructor
@@ -18,18 +20,24 @@ public class DriverController {
     private final DriverService driverService;
     private final DriverRepository driverRepository;
 
+    // ✅ Update driver location
     @PostMapping("/update-location")
     public ResponseEntity<?> updateLocation(@RequestBody LocationRequest request) {
         driverService.updateDriverLocation(request);
-        return ResponseEntity.ok("Location updated");
+        return ResponseEntity.ok("Location updated successfully");
     }
 
+    // ✅ Get my assigned cab (based on mobile in JWT)
     @GetMapping("/my-cab")
     public ResponseEntity<?> myCab(Authentication auth) {
-        String username = auth.getName();
-        Driver d = driverRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Driver not found for " + username));
-        Cab cab = d.getCab();
-        return ResponseEntity.ok().body(java.util.Map.of("cab", cab));
+        // When driver logs in, JWT subject = mobile number
+        String mobile = auth.getName();
+
+        Driver driver = driverRepository.findByMobile(mobile)
+                .orElseThrow(() -> new RuntimeException("Driver not found for mobile: " + mobile));
+
+        Cab cab = driver.getCab();
+
+        return ResponseEntity.ok(Map.of("cab", cab));
     }
 }

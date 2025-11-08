@@ -13,12 +13,16 @@ public class Driver {
     private Long id;
 
     @Column(unique = true)
-    private String username;
+    private String name;
 
     // In production this should be encoded
     private String password;
+    private String mobile;
+    private String cabNumber;
+    private String role;
 
     @OneToOne
     @JoinColumn(name = "cab_id")
     private Cab cab;
+
 }

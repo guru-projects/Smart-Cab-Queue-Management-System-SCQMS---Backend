@@ -67,7 +67,6 @@ public class AuthController {
         Employee emp = employeeRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        // Authenticate using Spring Security
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(email, password)
         );
@@ -80,6 +79,64 @@ public class AuthController {
         response.put("email", emp.getEmail());
         response.put("name", emp.getName());
         response.put("role", emp.getRole());
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ✅ DRIVER REGISTER
+    @PostMapping("/driver/register")
+    public ResponseEntity<?> registerDriver(@RequestBody Map<String, String> body) {
+        String name = body.get("name");
+        String mobile = body.get("mobile");
+        String cabNumber = body.get("cabNumber");
+        String password = body.get("password");
+        String confirmPassword = body.get("confirmPassword");
+
+        if (mobile == null || password == null || confirmPassword == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Mobile number and password are required."));
+
+        if (!password.equals(confirmPassword))
+            return ResponseEntity.badRequest().body(Map.of("error", "Passwords do not match."));
+
+        if (driverRepository.findByMobile(mobile).isPresent())
+            return ResponseEntity.badRequest().body(Map.of("error", "Mobile number already registered."));
+
+        Driver driver = new Driver();
+        driver.setName(name);
+        driver.setMobile(mobile);
+        driver.setCabNumber(cabNumber);
+        driver.setPassword(passwordEncoder.encode(password));
+        driver.setRole("DRIVER");
+
+        driverRepository.save(driver);
+        return ResponseEntity.ok(Map.of("message", "Driver registered successfully!", "mobile", mobile));
+    }
+
+    // ✅ DRIVER LOGIN
+    @PostMapping("/driver/login")
+    public ResponseEntity<?> loginDriver(@RequestBody Map<String, String> body) {
+        String mobile = body.get("mobile");
+        String password = body.get("password");
+
+        if (mobile == null || password == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Mobile and password are required."));
+
+        Driver driver = (Driver) driverRepository.findByMobile(mobile)
+                .orElseThrow(() -> new RuntimeException("Driver not found"));
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(mobile, password)
+        );
+
+        User user = (User) authentication.getPrincipal();
+        String token = jwtUtil.generateToken(user);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("mobile", driver.getMobile());
+        response.put("name", driver.getName());
+        response.put("cabNumber", driver.getCabNumber());
+        response.put("role", driver.getRole());
 
         return ResponseEntity.ok(response);
     }

@@ -1,22 +1,25 @@
 package com.scqms.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.scqms.enums.Status;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "cab")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Cab {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String cabNumber;
-    private String driverName;
 
     @Enumerated(EnumType.STRING)
     private Status status;
@@ -25,4 +28,8 @@ public class Cab {
     private Double longitude;
 
     private LocalDateTime lastUpdated;
+
+    @OneToOne(mappedBy = "cab", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private Driver driver;
 }

@@ -2,10 +2,13 @@ package com.scqms.service;
 
 import com.scqms.entity.Booking;
 import com.scqms.entity.Cab;
+import com.scqms.entity.Employee;
 import com.scqms.enums.Status;
 import com.scqms.repository.BookingRepository;
 import com.scqms.repository.CabRepository;
+import com.scqms.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,12 +20,17 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final CabRepository cabRepository;
+    private final EmployeeRepository employeeRepository;  // ✅ Added
 
     public Booking createBooking(Long employeeId) {
+        // ✅ Load the employee entity
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
         Booking b = new Booking();
-        b.setEmployeeId(employeeId);
+        b.setEmployee(employee);  // ✅ Set employee object, not employeeId
         b.setCreatedAt(LocalDateTime.now());
-        b.setStatus("QUEUED");
+        b.setStatus(Status.BUSY);  // ✅ Changed from BUSY to QUEUED (more logical)
         return bookingRepository.save(b);
     }
 
@@ -36,7 +44,7 @@ public class BookingService {
 
         Booking toAssign = queued.get(0);
         toAssign.setCab(cab);
-        toAssign.setStatus("ASSIGNED");
+        toAssign.setStatus(Status.ASSIGNED);
         bookingRepository.save(toAssign);
 
         long activeBookings = bookingRepository.countByCabAndStatus(cab, "ASSIGNED");
@@ -47,7 +55,6 @@ public class BookingService {
             cab.setStatus(Status.BUSY); // 4th passenger
         }
 
-//        cab.setStatus(Status.BUSY);
         cab.setLastUpdated(LocalDateTime.now());
         cabRepository.save(cab);
 
@@ -59,15 +66,27 @@ public class BookingService {
     }
 
     public List<Booking> getBookingsByEmployee(Long employeeId) {
-        return bookingRepository.findByEmployeeId(employeeId);
+        // ✅ Updated to use employee relationship
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        List<Booking> bookings = bookingRepository.findByEmployee(employee);
+
+        // Eagerly load cab + driver details
+        bookings.forEach(b -> {
+            if (b.getCab() != null && b.getCab().getDriver() != null) {
+                Hibernate.initialize(b.getCab().getDriver());
+            }
+        });
+
+        return bookings;
     }
 
-    // ✅ NEW: Complete a booking and free up cab
     public Booking completeBooking(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        booking.setStatus("COMPLETED");
+        booking.setStatus(Status.COMPLETED);
         bookingRepository.save(booking);
 
         Cab cab = booking.getCab();

@@ -28,7 +28,6 @@ public class ScqmsApplication {
                 for (int i = 1; i <= 4; i++) {
                     Cab c = new Cab();
                     c.setCabNumber("TN01AB100" + i);
-                    c.setDriverName("Driver" + i);
                     c.setStatus(Status.AVAILABLE);
                     c.setLastUpdated(LocalDateTime.now());
                     cabRepo.save(c);

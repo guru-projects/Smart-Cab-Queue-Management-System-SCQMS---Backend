@@ -1,12 +1,14 @@
 package com.scqms.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Entity
+@Table(name = "employee")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Employee {
 
     @Id
@@ -14,14 +16,8 @@ public class Employee {
     private Long id;
 
     private String name;
-
-    @Column(unique = true)
     private String email;
-
+    private String username;
     private String password;
-    private String role = "EMPLOYEE";
-
-    public void setUsername(String admin) {
-        this.name = name;
-    }
+    private String role;
 }

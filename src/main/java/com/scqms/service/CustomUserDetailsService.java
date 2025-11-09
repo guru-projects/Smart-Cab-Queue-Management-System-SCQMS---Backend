@@ -4,41 +4,52 @@ import com.scqms.entity.Employee;
 import com.scqms.entity.Driver;
 import com.scqms.repository.EmployeeRepository;
 import com.scqms.repository.DriverRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
+import java.util.Optional;
+
 @Service
-@RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final EmployeeRepository employeeRepository;
-    private final DriverRepository driverRepository;
+    @Autowired
+    private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private DriverRepository driverRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String usernameOrEmailOrMobile) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        Optional<Employee> empOpt = employeeRepository.findByEmail(username);
 
-        // Try to load Employee by email
-        Employee emp = employeeRepository.findByEmail(usernameOrEmailOrMobile).orElse(null);
-        if (emp != null) {
-            return User.withUsername(emp.getEmail())
-                    .password(emp.getPassword())
-                    .roles(emp.getRole())
-                    .build();
+        if (empOpt.isEmpty()) {
+            empOpt = employeeRepository.findByUsername(username);
         }
 
-        // Try to load Driver by mobile
-        Driver driver = driverRepository.findByMobile(usernameOrEmailOrMobile).orElse(null);
-        if (driver != null) {
-            return User.withUsername(driver.getMobile())
-                    .password(driver.getPassword())
-                    .roles("DRIVER")
-                    .build();
+        if (empOpt.isEmpty()) {
+            Optional<Driver> driverOpt = driverRepository.findByMobile(username);
+            if (driverOpt.isEmpty()) {
+                throw new UsernameNotFoundException("User not found with email, username, or mobile: " + username);
+            }
+            Driver driver = driverOpt.get();
+            return new org.springframework.security.core.userdetails.User(
+                    driver.getMobile(),
+                    driver.getPassword(),
+                    Collections.singleton(() -> "ROLE_DRIVER")
+            );
         }
 
-        throw new UsernameNotFoundException("User not found with email or mobile: " + usernameOrEmailOrMobile);
+        Employee emp = empOpt.get();
+        String identifier = emp.getEmail() != null ? emp.getEmail() : emp.getUsername();
+        String role = emp.getRole() != null ? emp.getRole() : "EMPLOYEE";
+
+        return new org.springframework.security.core.userdetails.User(
+                identifier,
+                emp.getPassword(),
+                Collections.singleton(() -> "ROLE_" + role)
+        );
     }
+
 }

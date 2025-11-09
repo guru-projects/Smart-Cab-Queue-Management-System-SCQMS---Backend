@@ -36,7 +36,7 @@ public class BookingService {
 
     // Assign next queued booking to next available cab
     public Booking tryAssignNext() {
-        List<Booking> queued = bookingRepository.findByStatusOrderByCreatedAtAsc("QUEUED");
+        List<Booking> queued = bookingRepository.findByStatusOrderByCreatedAtAsc(Status.QUEUED);
         if (queued.isEmpty()) return null;
 
         Cab cab = cabRepository.findFirstByStatusIn(List.of(Status.AVAILABLE, Status.PARTIALLY_BUSY)).orElse(null);
@@ -47,7 +47,7 @@ public class BookingService {
         toAssign.setStatus(Status.ASSIGNED);
         bookingRepository.save(toAssign);
 
-        long activeBookings = bookingRepository.countByCabAndStatus(cab, "ASSIGNED");
+        long activeBookings = bookingRepository.countByCabAndStatus(cab, Status.ASSIGNED);
 
         if (activeBookings < 3) {
             cab.setStatus(Status.PARTIALLY_BUSY);
@@ -90,7 +90,7 @@ public class BookingService {
         bookingRepository.save(booking);
 
         Cab cab = booking.getCab();
-        long activeBookings = bookingRepository.countByCabAndStatus(cab, "ASSIGNED");
+        long activeBookings = bookingRepository.countByCabAndStatus(cab, Status.ASSIGNED);
 
         if (activeBookings == 0) cab.setStatus(Status.AVAILABLE);
         else if (activeBookings < 4) cab.setStatus(Status.PARTIALLY_BUSY);

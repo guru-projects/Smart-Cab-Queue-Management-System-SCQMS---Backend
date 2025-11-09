@@ -26,7 +26,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ✅ Enable CORS using your CorsConfig
                 .cors(cors -> cors.configurationSource(request -> {
                     var corsConfiguration = new org.springframework.web.cors.CorsConfiguration();
                     corsConfiguration.addAllowedOrigin("http://localhost:5173");
@@ -35,18 +34,21 @@ public class SecurityConfig {
                     corsConfiguration.setAllowCredentials(true);
                     return corsConfiguration;
                 }))
-                // ✅ Disable CSRF (for APIs)
                 .csrf(csrf -> csrf.disable())
-                // ✅ Configure endpoint permissions
                 .authorizeHttpRequests(auth -> auth
+                        // ✅ Public endpoints
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // ✅ Protected APIs
+                        .requestMatchers("/api/bookings/**", "/api/location/**", "/api/cabs/**").authenticated()
                         .anyRequest().authenticated()
                 )
-                // ✅ Add JWT filter before username-password filter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
 
     @Bean
     public PasswordEncoder passwordEncoder() {

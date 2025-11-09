@@ -6,19 +6,17 @@ import com.scqms.entity.Driver;
 import com.scqms.repository.EmployeeRepository;
 import com.scqms.repository.DriverRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
+import org.springframework.http.*;
+import org.springframework.security.authentication.*;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/auth")
+@CrossOrigin(origins = "http://localhost:5173") // ✅ Allow frontend
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -30,9 +28,10 @@ public class AuthController {
 
     // ✅ EMPLOYEE REGISTER
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> registerEmployee(@RequestBody Map<String, String> body) {
         String name = body.get("name");
         String email = body.get("email");
+        String username = body.get("username");
         String password = body.get("password");
         String confirmPassword = body.get("confirmPassword");
 
@@ -48,30 +47,48 @@ public class AuthController {
         Employee emp = new Employee();
         emp.setName(name);
         emp.setEmail(email);
+        emp.setUsername(username != null ? username : email); // fallback
         emp.setPassword(passwordEncoder.encode(password));
         emp.setRole("EMPLOYEE");
 
         employeeRepository.save(emp);
-        return ResponseEntity.ok(Map.of("message", "Employee registered successfully!", "email", email));
+        return ResponseEntity.ok(Map.of("message", "Employee registered successfully!", "email", emp.getEmail()));
     }
 
-    // ✅ EMPLOYEE LOGIN
+    // ✅ EMPLOYEE LOGIN (by email or username)
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
+    public ResponseEntity<?> loginEmployee(@RequestBody Map<String, String> body) {
+        String identifier = body.get("email"); // can be email OR username
         String password = body.get("password");
 
-        if (email == null || password == null)
-            return ResponseEntity.badRequest().body(Map.of("error", "Email and password are required."));
+        if (identifier == null || password == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Email/Username and password are required."));
 
-        Employee emp = employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        // Authenticate (Spring will call CustomUserDetailsService)
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(identifier, password)
+            );
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid credentials."));
+        }
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, password)
+        // Lookup employee by email or username
+        Optional<Employee> empOpt = employeeRepository.findByEmail(identifier);
+        if (empOpt.isEmpty()) empOpt = employeeRepository.findByUsername(identifier);
+
+        if (empOpt.isEmpty())
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Employee not found."));
+
+        Employee emp = empOpt.get();
+        User user = new User(
+                emp.getEmail(),
+                emp.getPassword(),
+                List.of(() -> "ROLE_" + emp.getRole())
         );
 
-        User user = (User) authentication.getPrincipal();
         String token = jwtUtil.generateToken(user);
 
         Map<String, Object> response = new HashMap<>();
@@ -112,7 +129,7 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Driver registered successfully!", "mobile", mobile));
     }
 
-    // ✅ DRIVER LOGIN
+    // ✅ DRIVER LOGIN (by mobile)
     @PostMapping("/driver/login")
     public ResponseEntity<?> loginDriver(@RequestBody Map<String, String> body) {
         String mobile = body.get("mobile");
@@ -121,14 +138,24 @@ public class AuthController {
         if (mobile == null || password == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Mobile and password are required."));
 
-        Driver driver = (Driver) driverRepository.findByMobile(mobile)
-                .orElseThrow(() -> new RuntimeException("Driver not found"));
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(mobile, password)
+            );
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid credentials."));
+        }
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(mobile, password)
+        Driver driver = driverRepository.findByMobile(mobile)
+                .orElseThrow(() -> new RuntimeException("Driver not found."));
+
+        User user = new User(
+                driver.getMobile(),
+                driver.getPassword(),
+                List.of(() -> "ROLE_DRIVER")
         );
 
-        User user = (User) authentication.getPrincipal();
         String token = jwtUtil.generateToken(user);
 
         Map<String, Object> response = new HashMap<>();

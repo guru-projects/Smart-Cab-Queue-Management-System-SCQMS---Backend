@@ -5,6 +5,7 @@ import com.scqms.entity.Driver;
 import com.scqms.repository.EmployeeRepository;
 import com.scqms.repository.DriverRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
 
@@ -39,11 +40,13 @@ public class CustomUserDetailsService implements UserDetailsService {
 
             Driver driver = driverOpt.get();
 
-            // ✅ Return Spring User for DRIVER
+            // ✅ Return Spring User for DRIVER with proper authority
             return new org.springframework.security.core.userdetails.User(
                     driver.getMobile(),
                     driver.getPassword(),
-                    Collections.singleton(() -> "ROLE_" + driver.getRole()) // 👈 No scoping issue now
+                    Collections.singleton(new SimpleGrantedAuthority(
+                            driver.getRole().startsWith("ROLE_") ? driver.getRole() : "ROLE_" + driver.getRole()
+                    ))
             );
         }
 
@@ -55,7 +58,9 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
                 identifier,
                 emp.getPassword(),
-                Collections.singleton(() -> "ROLE_" + role)
+                Collections.singleton(new SimpleGrantedAuthority(
+                        role.startsWith("ROLE_") ? role : "ROLE_" + role
+                ))
         );
     }
 }

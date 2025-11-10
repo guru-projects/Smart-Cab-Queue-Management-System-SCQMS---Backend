@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -48,7 +49,10 @@ public class JwtUtil {
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("roles", userDetails.getAuthorities());
+        claims.put("roles", userDetails.getAuthorities().stream()
+                .map(auth -> auth.getAuthority())
+                .toList());
+        System.out.println("Authorities: " + SecurityContextHolder.getContext().getAuthentication().getAuthorities());
         return createToken(claims, userDetails.getUsername());
     }
 

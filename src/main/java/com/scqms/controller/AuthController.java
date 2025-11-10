@@ -8,6 +8,7 @@ import com.scqms.repository.DriverRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.authentication.*;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -86,7 +87,7 @@ public class AuthController {
         User user = new User(
                 emp.getEmail(),
                 emp.getPassword(),
-                List.of(() -> "ROLE_" + emp.getRole())
+                List.of(new SimpleGrantedAuthority("ROLE_" + emp.getRole()))
         );
 
         String token = jwtUtil.generateToken(user);
@@ -96,6 +97,7 @@ public class AuthController {
         response.put("email", emp.getEmail());
         response.put("name", emp.getName());
         response.put("role", emp.getRole());
+        response.put("id", emp.getId()); // ✅ add this line
 
         return ResponseEntity.ok(response);
     }
@@ -105,7 +107,6 @@ public class AuthController {
     public ResponseEntity<?> registerDriver(@RequestBody Map<String, String> body) {
         String name = body.get("name");
         String mobile = body.get("mobile");
-        String cabNumber = body.get("cabNumber");
         String password = body.get("password");
         String confirmPassword = body.get("confirmPassword");
 
@@ -121,7 +122,6 @@ public class AuthController {
         Driver driver = new Driver();
         driver.setName(name);
         driver.setMobile(mobile);
-        driver.setCabNumber(cabNumber);
         driver.setPassword(passwordEncoder.encode(password));
         driver.setRole("DRIVER");
 
@@ -150,10 +150,11 @@ public class AuthController {
         Driver driver = driverRepository.findByMobile(mobile)
                 .orElseThrow(() -> new RuntimeException("Driver not found."));
 
+        // ✅ Proper authority object
         User user = new User(
                 driver.getMobile(),
                 driver.getPassword(),
-                List.of(() -> "ROLE_DRIVER")
+                List.of(new SimpleGrantedAuthority("ROLE_DRIVER"))
         );
 
         String token = jwtUtil.generateToken(user);
@@ -162,9 +163,10 @@ public class AuthController {
         response.put("token", token);
         response.put("mobile", driver.getMobile());
         response.put("name", driver.getName());
-        response.put("cabNumber", driver.getCabNumber());
         response.put("role", driver.getRole());
+        response.put("id", driver.getId());
 
         return ResponseEntity.ok(response);
     }
+
 }

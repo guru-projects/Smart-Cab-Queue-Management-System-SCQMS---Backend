@@ -1,6 +1,7 @@
 package com.scqms.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,6 +11,7 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Driver {
 
     @Id
@@ -20,7 +22,6 @@ public class Driver {
     private String mobile;
     private String password;
     private String role;
-    private String cabNumber;
 
     // ✅ Removed cabNumber field - get it from cab.getCabNumber() instead
 

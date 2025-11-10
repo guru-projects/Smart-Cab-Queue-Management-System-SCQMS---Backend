@@ -30,7 +30,6 @@ public class DriverController {
     // ✅ Get my assigned cab (based on mobile in JWT)
     @GetMapping("/my-cab")
     public ResponseEntity<?> myCab(Authentication auth) {
-        // When driver logs in, JWT subject = mobile number
         String mobile = auth.getName();
 
         Driver driver = driverRepository.findByMobile(mobile)
@@ -38,6 +37,10 @@ public class DriverController {
 
         Cab cab = driver.getCab();
 
-        return ResponseEntity.ok(Map.of("cab", cab));
+        if (cab == null) {
+            return ResponseEntity.ok().body("No cab assigned yet");
+        }
+
+        return ResponseEntity.ok(cab);
     }
 }

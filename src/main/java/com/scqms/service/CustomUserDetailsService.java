@@ -22,25 +22,32 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // ✅ 1. Try Employee (email or username)
         Optional<Employee> empOpt = employeeRepository.findByEmail(username);
 
         if (empOpt.isEmpty()) {
             empOpt = employeeRepository.findByUsername(username);
         }
 
+        // ✅ 2. If not found, try Driver (mobile)
         if (empOpt.isEmpty()) {
             Optional<Driver> driverOpt = driverRepository.findByMobile(username);
+
             if (driverOpt.isEmpty()) {
                 throw new UsernameNotFoundException("User not found with email, username, or mobile: " + username);
             }
+
             Driver driver = driverOpt.get();
+
+            // ✅ Return Spring User for DRIVER
             return new org.springframework.security.core.userdetails.User(
                     driver.getMobile(),
                     driver.getPassword(),
-                    Collections.singleton(() -> "ROLE_DRIVER")
+                    Collections.singleton(() -> "ROLE_" + driver.getRole()) // 👈 No scoping issue now
             );
         }
 
+        // ✅ 3. Return Spring User for EMPLOYEE / ADMIN
         Employee emp = empOpt.get();
         String identifier = emp.getEmail() != null ? emp.getEmail() : emp.getUsername();
         String role = emp.getRole() != null ? emp.getRole() : "EMPLOYEE";
@@ -51,5 +58,4 @@ public class CustomUserDetailsService implements UserDetailsService {
                 Collections.singleton(() -> "ROLE_" + role)
         );
     }
-
 }

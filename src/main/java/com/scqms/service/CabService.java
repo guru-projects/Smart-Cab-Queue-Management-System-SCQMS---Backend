@@ -47,4 +47,15 @@ public class CabService {
         cab.setLastUpdated(LocalDateTime.now());
         return cabRepository.save(cab);
     }
+
+    public Cab updateLocationByDriver(Long driverId, Double latitude, Double longitude) {
+        Cab cab = cabRepository.findByDriverId(driverId)
+                .orElseThrow(() -> new RuntimeException("No cab found for driver ID: " + driverId));
+
+        cab.setLatitude(latitude);
+        cab.setLongitude(longitude);
+        cab.setLastUpdated(LocalDateTime.now());
+        return cabRepository.save(cab);
+    }
+
 }

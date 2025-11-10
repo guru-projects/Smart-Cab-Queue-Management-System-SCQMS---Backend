@@ -36,4 +36,13 @@ public class CabController {
                                             @RequestParam Float longitude) {
         return ResponseEntity.ok(cabService.updateLocation(cabId, latitude, longitude));
     }
+
+    @PutMapping("/update-location/driver/{driverId}")
+    public ResponseEntity<?> updateLocationByDriver(
+            @PathVariable Long driverId,
+            @RequestParam Double latitude,
+            @RequestParam Double longitude) {
+        return ResponseEntity.ok(cabService.updateLocationByDriver(driverId, latitude, longitude));
+    }
+
 }

@@ -36,19 +36,24 @@ public class SecurityConfig {
                 }))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Public endpoints
+                        // Public endpoints
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // ✅ Protected APIs
-                        .requestMatchers("/api/bookings/**", "/api/location/**", "/api/cabs/**").authenticated()
+                        // ✅ DRIVER endpoints
+                        .requestMatchers("/api/driver/**", "/cab/update-location/driver/**")
+                        .hasAuthority("ROLE_DRIVER")
+
+                        // ✅ EMPLOYEE / ADMIN endpoints
+                        .requestMatchers("/api/bookings/**", "/api/employee/**")
+                        .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN")
+
+                        // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
 
     @Bean
     public PasswordEncoder passwordEncoder() {

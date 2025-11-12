@@ -18,6 +18,7 @@ public class DriverService {
     private final DriverRepository driverRepository;
     private final DriverSessionRepository driverSessionRepository;
     private final GeoFenceUtil geoFenceUtil;
+    private final BookingRepository bookingRepository;
 
     // ✅ Get all available cabs
     public List<Cab> getAvailableCabs() {
@@ -75,42 +76,42 @@ public class DriverService {
 
     // ✅ Update live location
     public void updateDriverLocation(LocationRequest request) {
+        // ✅ Identify driver from token
         String mobile = SecurityContextHolder.getContext().getAuthentication().getName();
 
         Driver driver = driverRepository.findByMobile(mobile)
                 .orElseThrow(() -> new RuntimeException("Driver not found"));
 
         DriverSession session = driverSessionRepository.findActiveByDriver(driver.getId())
-                .orElse(null);
+                .orElseThrow(() -> new RuntimeException("No active session found"));
 
-        Cab cab;
-        if (session != null) {
-            cab = session.getCab();
-        } else {
-            throw new RuntimeException("No cab linked to active session for this driver");
-        }
+        Cab cab = session.getCab();
 
-        // ✅ Update location fields
-        cab.setLatitude(request.getLatitude());
-        cab.setLongitude(request.getLongitude());
+        double latitude = request.getLatitude();
+        double longitude = request.getLongitude();
+
+        // ✅ Update location + timestamp
+        cab.setLatitude(latitude);
+        cab.setLongitude(longitude);
         cab.setLastUpdated(LocalDateTime.now());
 
-        // ✅ Status logic — keep IN_USE if session active
-        if (session != null && session.getStatus() == Status.IN_USE) {
-            cab.setStatus(Status.IN_USE);
+        // ✅ Determine current location
+        if (geoFenceUtil.isNearGuindy(latitude, longitude)) {
+            cab.setCurrentLocation("STATION");
+        } else if (geoFenceUtil.isNearOffice(latitude, longitude)) {
+            cab.setCurrentLocation("OFFICE");
         } else {
-            // Session not active → check geofence for available/offline
-            boolean insideFence = geoFenceUtil.isWithinArea(request.getLatitude(), request.getLongitude());
-            cab.setStatus(insideFence ? Status.AVAILABLE : Status.OFFLINE);
+            cab.setCurrentLocation("ON_ROUTE");
         }
 
         cabRepository.save(cab);
 
-        System.out.println("📍 Updated cab location: " + cab.getCabNumber() +
-                " | Lat: " + request.getLatitude() +
-                " | Lng: " + request.getLongitude());
+        System.out.println("📍 Cab " + cab.getCabNumber()
+                + " | Driver: " + driver.getName()
+                + " | Location: " + cab.getCurrentLocation()
+                + " | Lat: " + latitude
+                + " | Lon: " + longitude);
     }
-
 
     // ✅ Get my active cab
     public Cab getMyActiveCab() {

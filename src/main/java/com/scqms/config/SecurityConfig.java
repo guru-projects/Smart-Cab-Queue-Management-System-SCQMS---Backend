@@ -41,11 +41,11 @@ public class SecurityConfig {
 
                         // ✅ DRIVER endpoints
                         .requestMatchers("/api/driver/**", "/cab/update-location/driver/**")
-                        .hasAuthority("ROLE_DRIVER")
+                        .hasAnyAuthority("DRIVER", "ROLE_DRIVER")
 
                         // ✅ EMPLOYEE / ADMIN endpoints
                         .requestMatchers("/api/bookings/**", "/api/employee/**")
-                        .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN")
+                        .hasAnyAuthority("EMPLOYEE", "ROLE_EMPLOYEE", "ADMIN", "ROLE_ADMIN")
 
                         // Everything else requires authentication
                         .anyRequest().authenticated()

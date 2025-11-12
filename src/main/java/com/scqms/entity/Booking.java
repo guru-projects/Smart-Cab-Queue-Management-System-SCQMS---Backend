@@ -35,4 +35,11 @@ public class Booking {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cab_id")
     private Cab cab;
+
+    private String pickupLocation;
+    private String dropLocation;
+
+    public Object getPickupLocation() {
+        return pickupLocation;
+    }
 }

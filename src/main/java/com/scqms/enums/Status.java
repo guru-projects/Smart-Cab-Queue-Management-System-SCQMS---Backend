@@ -1,6 +1,7 @@
 package com.scqms.enums;
 
 public enum Status {
+    CANCELLED,
     IN_USE,
     QUEUED,
     AVAILABLE,

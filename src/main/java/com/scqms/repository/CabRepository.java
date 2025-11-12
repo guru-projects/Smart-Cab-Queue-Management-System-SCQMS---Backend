@@ -17,4 +17,6 @@ public interface CabRepository extends JpaRepository<Cab, Long> {
     Optional<Cab> findFirstByStatusInOrderByLastUpdatedAsc(List<Status> statuses);
     Optional<Cab> findByDriverId(Long driverId);
     List<Cab> findByStatus(Status status);
+
+    List<Cab> findByStatusIn(List<Status> available);
 }

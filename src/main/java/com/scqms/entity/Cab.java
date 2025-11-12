@@ -22,16 +22,16 @@ public class Cab {
     private Long id;
 
     private String cabNumber;
+    private String currentLocation; // e.g. "STATION", "OFFICE", or "ON_ROUTE"
 
     @Enumerated(EnumType.STRING)
     private Status status;
 
     private Double latitude;
     private Double longitude;
-
     private LocalDateTime lastUpdated;
 
-    @OneToOne(mappedBy = "cab", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "cab", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private Driver driver;
 }

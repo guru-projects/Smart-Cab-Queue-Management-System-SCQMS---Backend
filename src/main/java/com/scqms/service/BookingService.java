@@ -12,7 +12,9 @@ import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -22,16 +24,43 @@ public class BookingService {
     private final CabRepository cabRepository;
     private final EmployeeRepository employeeRepository;  // ✅ Added
 
-    public Booking createBooking(Long employeeId) {
-        // ✅ Load the employee entity
+    public Booking createBooking(Long employeeId, String pickupType) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        Booking b = new Booking();
-        b.setEmployee(employee);  // ✅ Set employee object, not employeeId
-        b.setCreatedAt(LocalDateTime.now());
-        b.setStatus(Status.BUSY);  // ✅ Changed from BUSY to QUEUED (more logical)
-        return bookingRepository.save(b);
+        Cab cab = cabRepository.findFirstByStatusIn(List.of(Status.AVAILABLE, Status.PARTIALLY_BUSY))
+                .orElseThrow(() -> new RuntimeException("No available cab found nearby"));
+
+        long activeBookings = bookingRepository.countByCabAndStatus(cab, Status.ASSIGNED);
+        if (activeBookings >= 4) throw new RuntimeException("Cab is full (4 passengers already assigned)");
+
+        Booking booking = new Booking();
+        booking.setEmployee(employee);
+        booking.setCab(cab);
+        booking.setCreatedAt(LocalDateTime.now());
+        booking.setStatus(Status.ASSIGNED);
+
+        // ✅ Auto assign pickup/drop
+        if ("OFFICE".equalsIgnoreCase(pickupType)) {
+            booking.setPickupLocation("Guindy Office");
+            booking.setDropLocation("Guindy Station");
+            cab.setCurrentLocation("OFFICE"); // 👈 Start from office
+        } else {
+            booking.setPickupLocation("Guindy Station");
+            booking.setDropLocation("Guindy Office");
+            cab.setCurrentLocation("STATION"); // 👈 Start from station
+        }
+
+        bookingRepository.save(booking);
+
+        activeBookings++;
+        if (activeBookings == 4) cab.setStatus(Status.BUSY);
+        else cab.setStatus(Status.PARTIALLY_BUSY);
+
+        cab.setLastUpdated(LocalDateTime.now());
+        cabRepository.save(cab);
+
+        return booking;
     }
 
     // Assign next queued booking to next available cab
@@ -66,16 +95,18 @@ public class BookingService {
     }
 
     public List<Booking> getBookingsByEmployee(Long employeeId) {
-        // ✅ Updated to use employee relationship
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         List<Booking> bookings = bookingRepository.findByEmployee(employee);
 
-        // Eagerly load cab + driver details
         bookings.forEach(b -> {
-            if (b.getCab() != null && b.getCab().getDriver() != null) {
-                Hibernate.initialize(b.getCab().getDriver());
+            if (b.getCab() != null) {
+                Hibernate.initialize(b.getCab());
+                b.getCab().getCurrentLocation(); // ✅ ensure field is fetched
+                if (b.getCab().getDriver() != null) {
+                    Hibernate.initialize(b.getCab().getDriver());
+                }
             }
         });
 
@@ -100,4 +131,29 @@ public class BookingService {
 
         return booking;
     }
+
+    public Booking cancelBooking(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getStatus() == Status.COMPLETED) {
+            throw new RuntimeException("Cannot cancel a completed booking.");
+        }
+
+        booking.setStatus(Status.CANCELLED);
+        bookingRepository.save(booking);
+
+        Cab cab = booking.getCab();
+        if (cab != null) {
+            long activeBookings = bookingRepository.countByCabAndStatus(cab, Status.ASSIGNED);
+
+            if (activeBookings == 0) cab.setStatus(Status.AVAILABLE);
+            else if (activeBookings < 4) cab.setStatus(Status.PARTIALLY_BUSY);
+
+            cabRepository.save(cab);
+        }
+
+        return booking;
+    }
+
 }

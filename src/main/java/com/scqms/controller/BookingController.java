@@ -29,40 +29,20 @@ public class BookingController {
     private final CabRepository cabRepository;
     private final EmployeeRepository employeeRepository;
 
+
     @PostMapping("/create/{employeeId}")
-    public ResponseEntity<?> createBooking(@PathVariable Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found with ID: " + employeeId));
+    public ResponseEntity<?> createBooking(
+            @PathVariable Long employeeId,
+            @RequestBody(required = false) Map<String, String> payload) {
 
-        // Find an available cab
-        Optional<Cab> availableCab = cabRepository.findFirstByStatus(Status.AVAILABLE);
+        String pickupType = payload != null && payload.containsKey("pickupType")
+                ? payload.get("pickupType")
+                : "STATION";
 
-        if (availableCab.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("error", "No available cabs right now. Please wait."));
-        }
-
-        Cab cab = availableCab.get();
-
-        // Update cab to busy
-        cab.setStatus(Status.BUSY);
-        cabRepository.save(cab);
-
-        // Create the booking
-        Booking booking = new Booking();
-        booking.setEmployee(employee);
-        booking.setCab(cab);
-        booking.setStatus(Status.ASSIGNED);
-        booking.setCreatedAt(LocalDateTime.now());
-        bookingRepository.save(booking);
-
-        return ResponseEntity.ok(Map.of(
-                "message", "Booking successful!",
-                "bookingId", booking.getId(),
-                "cabNumber", cab.getCabNumber(),
-                "driverName", cab.getDriver().getName()
-        ));
+        Booking booking = bookingService.createBooking(employeeId, pickupType);
+        return ResponseEntity.ok(booking);
     }
+
 
     @PostMapping("/assign-next")
     public ResponseEntity<?> assignNext() {
@@ -89,5 +69,11 @@ public class BookingController {
     @PutMapping("/complete/{bookingId}")
     public ResponseEntity<?> completeBooking(@PathVariable Long bookingId) {
         return ResponseEntity.ok(bookingService.completeBooking(bookingId));
+    }
+
+    @PutMapping("/cancel/{bookingId}")
+    public ResponseEntity<?> cancelBooking(@PathVariable Long bookingId) {
+        Booking cancelled = bookingService.cancelBooking(bookingId);
+        return ResponseEntity.ok(cancelled);
     }
 }

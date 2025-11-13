@@ -18,8 +18,8 @@ import java.time.LocalDateTime;
 public class ScqmsApplication {
     public static void main(String[] args) {
         SpringApplication.run(ScqmsApplication.class, args);
+        System.out.println("Hello");
     }
-
     // Seed sample data (4 cabs + drivers, 1 admin, 1 employee)
     @Bean
     CommandLineRunner runner(CabRepository cabRepo, DriverRepository driverRepo, EmployeeRepository empRepo) {
